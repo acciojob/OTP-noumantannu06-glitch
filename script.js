@@ -1,63 +1,70 @@
-document.addEventListener('DOMContentLoaded', function() {
-            const inputs = document.querySelectorAll('#code-1, #code-2, #code-3, #code-4, #code-5, #code-6');
+function initOTP() {
+            const inputs = [
+                document.getElementById('code-1'),
+                document.getElementById('code-2'),
+                document.getElementById('code-3'),
+                document.getElementById('code-4'),
+                document.getElementById('code-5'),
+                document.getElementById('code-6')
+            ];
+            
             const submitBtn = document.getElementById('submitBtn');
 
             // Focus first input
-            if (inputs[0]) inputs[0].focus();
+            inputs[0].focus();
 
             inputs.forEach((input, index) => {
-                // Input event - handle typing
-                input.addEventListener('input', function(e) {
-                    let value = this.value;
+                input.addEventListener('input', (e) => {
+                    let value = e.target.value;
                     
-                    // Only keep first digit
-                    if (value.length > 1) {
-                        this.value = value.slice(-1);
-                        value = this.value;
-                    }
-                    
-                    // Only allow digits
-                    if (!/^\d?$/.test(value)) {
-                        this.value = '';
-                        return;
+                    // Keep only digit
+                    value = value.replace(/\D/g, '').slice(0, 1);
+                    e.target.value = value;
+
+                    // Move forward
+                    if (value && index < 5) {
+                        inputs[index + 1].focus();
                     }
 
-                    // Move to next input
-                    if (value === '' || index < inputs.length - 1) {
-                        const nextInput = inputs[index + 1];
-                        if (nextInput && value.length === 1) {
-                            nextInput.focus();
-                        }
-                    }
-
-                    checkAllFilled();
+                    checkComplete();
                 });
 
-                // Keydown event - handle backspace
-                input.addEventListener('keydown', function(e) {
-                    if (e.key === 'Backspace') {
-                        // If empty, move to previous
-                        if (this.value === '' && index > 0) {
-                            e.preventDefault();
-                            inputs[index - 1].focus();
-                            return;
-                        }
-                    }
-                    
-                    // Block non-digit keys
-                    if (e.key.length === 1 && !/[\d]/.test(e.key)) {
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                        inputs[index - 1].focus();
                         e.preventDefault();
                     }
                 });
 
-                // Focus event
-                input.addEventListener('focus', function() {
-                    this.select();
+                input.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    setTimeout(() => {
+                        let value = (e.clipboardData || window.clipboardData).getData('text');
+                        value = value.replace(/\D/g, '').slice(0, 6 - index);
+                        
+                        for (let i = 0; i < value.length && index + i < 6; i++) {
+                            inputs[index + i].value = value[i];
+                        }
+                        
+                        const nextIdx = Math.min(index + value.length, 5);
+                        inputs[nextIdx].focus();
+                        checkComplete();
+                    }, 0);
                 });
             });
 
-            function checkAllFilled() {
-                const allFilled = Array.from(inputs).every(input => input.value.length === 1);
-                submitBtn.disabled = !allFilled;
+            function checkComplete() {
+                const complete = inputs.every(input => input.value.length === 1);
+                submitBtn.disabled = !complete;
             }
-        });
+        }
+
+        // CYPRESS SAFE: Multiple init attempts
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initOTP);
+        } else {
+            initOTP();
+        }
+
+        // Fallback for Cypress
+        window.addEventListener('load', initOTP);
